@@ -20,7 +20,6 @@ def all_parties():
     if request.method == 'POST':
         try:
             # TODO: create a party
-            print(request)
             result = create_party(request)
         except CannotPartyAloneError:
             # TODO: return 400
@@ -53,10 +52,8 @@ def single_party(id):
     # TODO: check if the party is an existing one
     try:
         exists_party(id)
-    except 404:
+    except BaseException:
         abort(404,"The party doesn't exist")
-    except 410:
-        abort(410,"The party existed but it is not there anymore.")
 
     if 'GET' == request.method:
         # TODO: retrieve a party
@@ -65,7 +62,7 @@ def single_party(id):
     elif 'DELETE' == request.method:
         del _LOADED_PARTIES[str(id)]
         _PARTIES_COUNTER -= 1
-        result = jsonify({'Delete': 'OK'})
+        result = jsonify({'msg': 'Party deleted'})
 
     return result
 
@@ -86,10 +83,10 @@ def get_foodlist(id):
 
     if 'GET' == request.method:
         # TODO: retrieve food-list of the party
-        result = _LOADED_PARTIES[str(id)].get_food_list()
+        party = _LOADED_PARTIES[str(id)]
+        foodlist = party.get_food_list()
 
-    return result
-
+    return jsonify({'foodlist': foodlist.serialize()})
 
 # TODO: complete the decoration
 @parties.route("/party/<id>/foodlist/<user>/<item>",methods=['POST','DELETE'])
@@ -105,21 +102,24 @@ def edit_foodlist(id, user, item):
         abort(410,"The party existed but it is not there anymore.")
 
     # TODO: retrieve the party
-    result = _LOADED_PARTIES[str(id)]
+    party = _LOADED_PARTIES[str(id)]
+    result = ""
 
     if 'POST' == request.method:
         # TODO: add item to food-list handling NotInvitedGuestError (401) and ItemAlreadyInsertedByUser (400)
         try:
-            result.add_to_food_list(item,user)
+            party.add_to_food_list(item,user)
         except NotInvitedGuestError:
-            abort(user + " is not invited!")
+            abort(401,user + " is not invited!")
+        result = jsonify({"food": item, "user": user})
 
     if 'DELETE' == request.method:
         # TODO: delete item to food-list handling NotExistingFoodError (400)
         try:
-            result.remove_from_food_list(item,user)
+            party.remove_from_food_list(item,user)
         except NotExistingFoodError:
-            abort("user " + user + " has not added " + item + " to this party foodlist")
+            abort(401,"user " + user + " has not added " + item + " to this party foodlist")
+        result = jsonify({'msg':"Food deleted!"})
     return result
 
 #
