@@ -7,7 +7,7 @@ parties = JsonBlueprint('parties', __name__)
 
 _LOADED_PARTIES = {}  # dict of available parties
 _PARTY_NUMBER = 0  # index of the last created party
-#added global variable 
+#added global variable: number of existing parties
 _PARTIES_COUNTER = 0
 
 
@@ -17,21 +17,21 @@ def all_parties():
     global _PARTIES_COUNTER
 
     result = None
-    if request.method == 'POST':
+    if request.method == 'POST': # request of creating a new party
         try:
             # TODO: create a party
-            result = create_party(request)
-        except CannotPartyAloneError:
+            result = create_party(request) # the party is created, result is set to ID of new party
+        except CannotPartyAloneError: # the creation of a party fails when no guests are provided
             # TODO: return 400
             abort(400,"No guests invited to the party")
         
-        _PARTIES_COUNTER += 1
+        _PARTIES_COUNTER += 1 # if the creation succeeds, the global counter of existing parties is incremented
 
-    elif request.method == 'GET':
+    elif request.method == 'GET': # request asking for existing parties
         # TODO: get all the parties
-        result = get_all_parties()
+        result = get_all_parties() # result is set to a list which contains existing parties
 
-    return result
+    return result 
 
 
 # TODO: complete the decoration
@@ -40,7 +40,7 @@ def loaded_parties():
     # TODO: returns the number of parties currently loaded in the system
     global _PARTIES_COUNTER
 
-    return jsonify({'loaded_parties': _PARTIES_COUNTER})
+    return jsonify({'loaded_parties': _PARTIES_COUNTER}) # the number of existing parties is available in the global counter
 
 # TODO: complete the decoration
 @parties.route("/party/<id>",methods=['GET','DELETE'])
@@ -52,17 +52,17 @@ def single_party(id):
     # TODO: check if the party is an existing one
     try:
         exists_party(id)
-    except BaseException:
+    except BaseException:  # the Exception could be either that the party never existed or that it existed but it's not there anymore
         abort(404,"The party doesn't exist")
 
-    if 'GET' == request.method:
+    if 'GET' == request.method: # retrieving a party
         # TODO: retrieve a party
-        result = jsonify(_LOADED_PARTIES[str(id)].serialize())
+        result = jsonify(_LOADED_PARTIES[str(id)].serialize()) # result gets the party to return
 
-    elif 'DELETE' == request.method:
-        del _LOADED_PARTIES[str(id)]
-        _PARTIES_COUNTER -= 1
-        result = jsonify({'msg': 'Party deleted'})
+    elif 'DELETE' == request.method: # request of deleting a party
+        del _LOADED_PARTIES[str(id)] # the party is deleted
+        _PARTIES_COUNTER -= 1        # the global counter is decremented
+        result = jsonify({'msg': 'Party deleted'}) # results gets a msg to signal the success
 
     return result
 
@@ -76,17 +76,15 @@ def get_foodlist(id):
     # TODO: check if the party is an existing one
     try:
         exists_party(id)
-    except 404:
+    except BaseException:
         abort(404,"The party doesn't exist")
-    except 410:
-        abort(410,"The party existed but it is not there anymore.")
 
-    if 'GET' == request.method:
+    if 'GET' == request.method: 
         # TODO: retrieve food-list of the party
-        party = _LOADED_PARTIES[str(id)]
-        foodlist = party.get_food_list()
+        party = _LOADED_PARTIES[str(id)] # retrieving the party
+        foodlist = party.get_food_list() # retrieving the foodlist of the party
 
-    return jsonify({'foodlist': foodlist.serialize()})
+    return jsonify({'foodlist': foodlist.serialize()}) # returns the serialized foodlist
 
 # TODO: complete the decoration
 @parties.route("/party/<id>/foodlist/<user>/<item>",methods=['POST','DELETE'])
@@ -96,10 +94,8 @@ def edit_foodlist(id, user, item):
     # TODO: check if the party is an existing one
     try:
         exists_party(id)
-    except 404:
+    except BaseException:
         abort(404,"The party doesn't exist")
-    except 410:
-        abort(410,"The party existed but it is not there anymore.")
 
     # TODO: retrieve the party
     party = _LOADED_PARTIES[str(id)]
@@ -109,15 +105,15 @@ def edit_foodlist(id, user, item):
         # TODO: add item to food-list handling NotInvitedGuestError (401) and ItemAlreadyInsertedByUser (400)
         try:
             party.add_to_food_list(item,user)
-        except NotInvitedGuestError:
+        except NotInvitedGuestError:  # The Exception is raised when the guest trying to add food is not invited to the party
             abort(401,user + " is not invited!")
         result = jsonify({"food": item, "user": user})
 
     if 'DELETE' == request.method:
         # TODO: delete item to food-list handling NotExistingFoodError (400)
         try:
-            party.remove_from_food_list(item,user)
-        except NotExistingFoodError:
+            party.remove_from_food_list(item,user)  
+        except NotExistingFoodError:  # The Exception is raised when a user is trying to remove a food that the user didn't added.
             abort(401,"user " + user + " has not added " + item + " to this party foodlist")
         result = jsonify({'msg':"Food deleted!"})
     return result
